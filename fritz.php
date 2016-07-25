@@ -40,18 +40,23 @@ class Fritz {
 		if( $upnp === null || $upnp === "" ) return;
 		if( $param === null || $param === "" ) return;
 		if( $uri === null || $uri === "" ) return;
-		$this->client = new SoapClient(
-				null,
-				array(
-				     'location'   => "http://" . $this->fb_ip . ":49000/" . $upnp . "/control/" . $param,
-				     'uri'        => $uri,
-				     'noroot'     => True,
-				     'login'      => $this->fb_user,
-				     'password'   => $this->fb_pass,
-				     'trace'      => True,
-				     'exceptions' => false
-				)
-		);
+		try {
+			$this->client = new SoapClient(
+					null,
+					array(
+						   'location'   => "http://" . $this->fb_ip . ":49000/" . $upnp . "/control/" . $param,
+						   'uri'        => $uri,
+						   'noroot'     => True,
+						   'login'      => $this->fb_user,
+						   'password'   => $this->fb_pass,
+						   'trace'      => True,
+						   'exceptions' => false
+					)
+			);
+		} catch ( SoapFault $e ) { 
+//			echo $e->getMessage();
+			echo $e->faultstring;
+		}
 	}
 	
 	/**
@@ -69,6 +74,122 @@ class Fritz {
 	 */
 	public function getCon() {
 		return $this->connected;
+	}
+	
+	//
+	// Services
+	//
+	
+	public function getServices() {
+  	$fburl = "http://" . $this->fb_ip . ":49000/";
+  	$services = array(	
+  											'tr64desc.xml',							// TR64 Info
+//  											'any.xml',									// Dummy
+//  											'deviceinfoSCPD.xml',				// Device Info
+//  											'deviceconfigSCPD.xml',			// Device Config
+//  											'layer3forwardingSCPD.xml',	// Layer 3 Forwarding
+//  											'lanconfigsecuritySCPD.xml',// LAN config security
+//  											'mgmsrvSCPD.xml',						// Management Server
+//  											'userifSCPD.xml',						// User Interface
+//  											'x_voipSCPD.xml',						// X VoIP
+//  											'x_storageSCPD.xml',				// X AVM DE Storage
+//  											'x_contactSCPD.xml',				// X AVM DE OnTel
+//  											'x_webdavSCPD.xml',					// X AVM DE WebDav Client
+//  											'x_upnpSCPD.xml',						// X AVM DE UPnP
+//  											'x_speedtestSCPD.xml',			// X AVM DE Speedtest
+//  											'x_remoteSCPD.xml',					// X AVM DE Remote Access
+//  											'x_myfritzSCPD.xml',				// X AVM DE MyFritz
+//  											'x_tamSCPD.xml',						// X AVM DE TAM 
+//  											'x_appsetupSCPD.xml',				// X AVM DE App Setup
+//  											'x_homeautoSCPD.xml',				// X AVM DE Homeauto
+//  											'x_homeplugSCPD.xml',				// X AVM DE Homeplug
+//  											'x_dectSCPD.xml',						// X AVM DE DECT
+//  											'x_filelinksSCPD.xml',			// X AVM DE Filelinks
+//  											'wlanconfigSCPD.xml',				// X AVM Wlan configuration (urn 1,2)
+//  											'hostsSCPD.xml',						// Hosts
+//  											'ethifconfigSCPD.xml',			// LAN Ethernet Interface config
+//  											'lanhostconfigmgmSCPD.xml',	// LAN Host config Management
+//  											'wancommonifconfigSCPD.xml',// WAN Common Interface config
+//  											'wandslifconfigSCPD.xml',		// WAN DSL Interface config
+//  											'wandsllinkconfigSCPD.xml',	// WAN DSL Link config
+//  											'wanethlinkconfigSCPD.xml',	// WAN Ethernet Link config
+//  											'wanpppconnSCPD.xml',				// WAN PPP connection
+//  											'wanipconnSCPD.xml',				// WAN IP connection
+														  											
+//												'igddesc.xml',							// Base
+//												'igdicfgSCPD.xml'						// WAN Common Interface config
+//												'igddslSCPD.xml'						// WAN DSL Link config
+//												'igdconnSCPD.xml',					// WAN IP Connection
+//												'igd2ipv6fwcSCPD.xml',			// Firewall IPv6 Control
+
+//												'MediaServerDevDesc.xml',						// Mediaserver
+//												'MediaServerContentDirectory.xml',	// Content Directory
+//												'MediaServerConnectionManager.xml',	// Connection Manager
+//												'MediaReceiverRegistrar.xml',				// X MS Media Receiver Registrar
+//												'ServerStatus.xml',									// AVM ServerStatus
+												
+//												'onlinestoredesc.xml',			// ?
+
+//												'fboxdesc.xml', 						// ?
+//												'fboxSCPD.xml',							// ?  
+													
+//  											'usbdesc.xml',							// USB Device
+//  											'usbSCPD.xml',							// USB Info
+
+//  											'timeSCPD.xml'							// Time
+  	);
+  	$result = array();
+  	foreach( $services as $service ) {
+  		$url = $fburl . $service;
+  		if( $this->getHeaderCode( $url ) == 200 ) {
+  			$result[] = @simplexml_load_file( $url );
+  		}
+  		
+  	}
+		return $result;
+	}
+	
+	public function getFirewallInfo() {
+		$this->client( 'igd2upnp', 'WANIPv6Firewall1', 'urn:schemas-upnp-org:service:WANIPv6FirewallControl:1' );
+		return $this->client->GetOutboundPinholeTimeout();
+	}
+	
+	
+	public function getDialUp() {
+		$this->client( 'upnp', 'x_voip', 'urn:dslforum-org:service:X_VoIP:1' );
+		return $client->{"X_AVM-DE_DialHangup"}();  
+	}
+	
+	/**
+	 * GetInfo
+	 * @param $value	(string) model, serial, version, uptime, log
+	 * @return (string)
+	 */
+	public function getInfo( $value = null, $lines = null ) {
+		if( $lines === null ) $lines = 5;
+	  $this->client( 'upnp', 'deviceinfo', 'urn:dslforum-org:service:DeviceInfo:1' );
+  	$data = $this->client->GetInfo();
+  	if( $value === 'model' ) {
+  		return $data['NewModelName'];
+  	} else if( $value === 'serial' ) {
+  		return $data['NewSerialNumber'];
+  	} else if( $value === 'version' ) {
+  		return $data['NewSoftwareVersion'];
+  	} else if( $value === 'uptime' ) {
+  		return gmdate( "H:i:s", $data['NewUpTime'] );
+  	} else if( $value === 'log' ) {
+//  		$logentries = utf8_encode( $data['NewDeviceLog'] );
+  		$logentries = $data['NewDeviceLog'];
+  		$lograw = explode( "\n", $logentries );
+  		$log = "";
+  		foreach( $lograw as $key => $value ) {
+  			if( ( $key +1 ) > $lines ) break;
+  			$log .= $value . "\n";
+  		}
+  		return $log;
+  	} else {
+  		return $data;
+  	}
 	}
 	
 	//
@@ -204,7 +325,36 @@ class Fritz {
 	public function getPhonebook() {
 		$this->client( 'upnp', 'x_contact', 'urn:dslforum-org:service:X_AVM-DE_OnTel:1' );
 		$phonebookurl = $this->client->GetPhonebook(new SoapParam( 0,"NewPhonebookID" ) );
-		return @simplexml_load_file( $phonebookurl['NewPhonebookURL'] );
+		return $this->parsePhonebook( @simplexml_load_file( $phonebookurl['NewPhonebookURL'] ) );
+	}
+	
+	/**
+	 * Phonebook helper
+	 * @return (array)
+	 */
+	private function parsePhonebook( $raw ) {
+		$intern = array();
+		$extern = array();
+		$voip		= array();
+		foreach ( $raw->phonebook->contact as $id => $data ) {
+			$name = $data->person->realName->__toString();
+			$uuid = $data->uniqueid->__toString();
+			$numbers = (array) $data->telephony->number;
+			unset( $numbers['@attributes'] ); // Remove number metadata
+			if( strpos( $numbers[0], '**' ) !== false ) {
+				$intern[ $uuid ] = array( 'name' => $name,
+																	'numbers' => $numbers );
+			} else if( strpos( $numbers[0], '@' ) !== false ) {
+				$voip[ $uuid ] = array( 'name' => $name,
+																'numbers' => $numbers );
+			} else {
+				$extern[ $uuid ] = array( 'name' => $name,
+																	'numbers' => $numbers );
+			}
+		}
+		return array( 'ext' => $extern, 
+									'int' => $intern,
+									'voip' => $voip );
 	}
 	
 	//
@@ -322,38 +472,34 @@ class Fritz {
 		return $hosts;
 	}
   
-	/**
-	 * GetInfo
-	 * @param $value	(string) model, serial, version, uptime, log
-	 * @return (string)
-	 */
-	public function getInfo( $value = null, $lines = null ) {
-		if( $lines === null ) $lines = 5;
-	  $this->client( 'upnp', 'deviceinfo', 'urn:dslforum-org:service:DeviceInfo:1' );
-  	$data = $this->client->GetInfo();
-  	if( $value === 'model' ) {
-  		return $data['NewModelName'];
-  	} else if( $value === 'serial' ) {
-  		return $data['NewSerialNumber'];
-  	} else if( $value === 'version' ) {
-  		return $data['NewSoftwareVersion'];
-  	} else if( $value === 'uptime' ) {
-  		return gmdate( "H:i:s", $data['NewUpTime'] );
-  	} else if( $value === 'log' ) {
-//  		$logentries = utf8_encode( $data['NewDeviceLog'] );
-  		$logentries = $data['NewDeviceLog'];
-  		$lograw = explode( "\n", $logentries );
-  		$log = "";
-  		foreach( $lograw as $key => $value ) {
-  			if( ( $key +1 ) > $lines ) break;
-  			$log .= $value . "\n";
-  		}
-  		return $log;
-  	} else {
-  		return $data;
-  	}
-	}
   
+  //
+  // IPTV Optimization
+  //
+  
+	public function getTvOptimized( $wifi = null ) {
+		if( $wifi === null ) {
+			$this->client( 'upnp', 'wlanconfig1', 'urn:dslforum-org:service:WLANConfiguration:1' );
+		} else {
+			$this->client( 'upnp', 'wlanconfig' . $wifi, 'urn:dslforum-org:service:WLANConfiguration:' . $wifi );
+		}
+		return $this->client->{'X_AVM-DE_GetIPTVOptimized'}();
+	}
+	
+	public function setTvOptimized( $state = null, $wifi = null ) {
+		if( $wifi === null ) {
+			$this->client( 'upnp', 'wlanconfig1', 'urn:dslforum-org:service:WLANConfiguration:1' );
+		} else {
+			$this->client( 'upnp', 'wlanconfig' . $wifi, 'urn:dslforum-org:service:WLANConfiguration:' . $wifi );
+		}
+		if( $state || $state == 'on' ) {
+	  	$value = 1;
+	  } else {
+	  	$value = 0;
+	  }
+		return $this->client->{'X_AVM-DE_SetIPTVOptimized'}( new SoapParam( $value, 'NewX_AVM-DE_IPTVoptimize') );
+	}
+	
   //
   // UPNP
   //
